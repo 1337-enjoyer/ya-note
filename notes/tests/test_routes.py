@@ -1,7 +1,6 @@
 from http import HTTPStatus
 
 from django.contrib.auth import get_user_model
-from django.shortcuts import redirect
 from django.test import TestCase
 from django.urls import reverse
 
@@ -15,7 +14,7 @@ class TestRoutes(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
         cls.author = User.objects.create(username='Author')
-        cls.non_author = User.objects.create(username='Non Author')
+        cls.another_author = User.objects.create(username='Non Author')
         cls.note = Note.objects.create(
             title='Title',
             text='text',
@@ -62,7 +61,7 @@ class TestRoutes(TestCase):
     def test_availability_for_edit_and_delete(self):
         users_statuses = (
             (self.author, HTTPStatus.OK),
-            (self.non_author, HTTPStatus.NOT_FOUND),
+            (self.another_author, HTTPStatus.NOT_FOUND),
         )
         for user, status in users_statuses:
             self.client.force_login(user)
