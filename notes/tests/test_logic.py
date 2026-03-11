@@ -1,3 +1,5 @@
+from http import HTTPStatus
+
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -64,6 +66,37 @@ class TestLogic(TestCase):
         note = Note.objects.get(title=self.form_data_without_slug['title'])
         self.assertEqual(note.slug, 'test-title')
 
-    def test_user_can_edit_delete_only_own_notes(self):
+    def test_author_can_edit_and_delete_own_note(self):
         self.client.force_login(self.author)
-        self
+        initial_count = Note.objects.count()
+        edit_url = reverse('notes:edit', args=[self.note.slug])
+        response = self.client.post(edit_url, data=self.form_data)
+        self.assertRedirects(response, reverse('notes:success'))
+        self.note.refresh_from_db()
+        self.assertEqual(self.note.title, self.form_data['title'])
+        self.assertEqual(self.note.text, self.form_data['text'])
+        self.assertEqual(self.note.slug, self.form_data['slug'])
+        delete_url = reverse('notes:delete', args=[self.note.slug])
+        response = self.client.post(delete_url)
+        self.assertRedirects(response, reverse('notes:success'))
+        self.assertEqual(Note.objects.count(), initial_count - 1)
+        with self.assertRaises(Note.DoesNotExist):
+            self.note.refresh_from_db()
+
+    def test_user_cannot_edit_or_delete_foreign_note(self):
+        self.client.force_login(self.author)
+        initial_count = Note.objects.count()
+        original_title = self.another_note.title
+        original_text = self.another_note.text
+        edit_url = reverse('notes:edit', args=[self.another_note.slug])
+        response = self.client.post(edit_url, data=self.form_data)
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+        self.another_note.refresh_from_db()
+        self.assertEqual(self.another_note.title, original_title)
+        self.assertEqual(self.another_note.text, original_text)
+        delete_url = reverse('notes:delete', args=[self.another_note.slug])
+        response = self.client.post(delete_url)
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+        self.assertEqual(Note.objects.count(), initial_count)
+        self.assertTrue(Note.objects.filter(
+            slug=self.another_note.slug).exists())
