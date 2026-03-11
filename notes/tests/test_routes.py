@@ -1,7 +1,7 @@
 from http import HTTPStatus
-from turtle import title
 
 from django.contrib.auth import get_user_model
+from django.shortcuts import redirect
 from django.test import TestCase
 from django.urls import reverse
 
@@ -23,23 +23,41 @@ class TestRoutes(TestCase):
             author=cls.author
         )
 
-    def test_main_page_availability(self):
-        url = reverse('notes:home', args=None)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_for_note_add_edit_delete(self):
-        self.client.force_login(self.author)
+    def test_pages_availability(self):
         urls = (
-            ('notes:add', None),
-            ('notes:list', None),
-            ('notes:success', None)
+            ('notes:home', None),
+            ('users:login', None),
+            ('users:signup', None)
         )
         for name, args in urls:
             with self.subTest(name=name):
                 url = reverse(name, args=args)
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        self.client.force_login(self.author)
+        url = reverse(name, args=args)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_for_note_add_edit_delete_logout(self):
+        self.client.force_login(self.author)
+        urls = (
+            ('notes:add', None),
+            ('notes:list', None),
+            ('notes:success', None),
+        )
+        for name, args in urls:
+            with self.subTest(name=name):
+                url = reverse(name, args=args)
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        with self.subTest(name='users:logout'):
+            logout_url = reverse('users:logout')
+            response = self.client.post(logout_url)
+            self.assertEqual(response.status_code,
+                             HTTPStatus.OK)
 
     def test_availability_for_edit_and_delete(self):
         users_statuses = (
@@ -53,3 +71,19 @@ class TestRoutes(TestCase):
                     url = reverse(name, args=(self.note.slug,))
                     response = self.client.get(url)
                     self.assertEqual(response.status_code, status)
+
+    def test_redirect_for_anonymous_client(self):
+        login_url = reverse('users:login')
+
+        def check_redirect(url_name, args=None):
+            with self.subTest(name=url_name):
+                url = reverse(url_name, args=args)
+                redirect_url = f'{login_url}?next={url}'
+                response = self.client.get(url)
+                self.assertRedirects(response, redirect_url)
+
+        for name in ('notes:edit', 'notes:detail', 'notes:delete'):
+            check_redirect(name, args=(self.note.slug,))
+
+        for name in ('notes:list', 'notes:success', 'notes:add'):
+            check_redirect(name)
