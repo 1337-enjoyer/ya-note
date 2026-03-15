@@ -7,6 +7,8 @@ from django.urls import reverse
 from notes.models import Note
 from notes.forms import NoteForm
 
+from notes.forms import WARNING
+
 User = get_user_model()
 
 
@@ -40,22 +42,38 @@ class TestLogic(TestCase):
         }
 
     def test_anonymous_user_cant_create_note(self):
-        self.client.post(reverse('notes:add'), data=self.form_data)
+        url = reverse('notes:add')
+        response = self.client.post(url, data=self.form_data)
+        login_url = reverse('users:login')
+        expected_url = f'{login_url}?next={url}'
+        self.assertRedirects(response, expected_url)
         nots_count = Note.objects.count()
         self.assertEqual(nots_count, 2)
 
     def test_user_can_create_note(self):
+        url = reverse('notes:add')
         self.client.force_login(self.author)
-        self.client.post(reverse('notes:add'), data=self.form_data)
+        response = self.client.post(url, data=self.form_data)
+        self.assertRedirects(response, reverse('notes:success'))
         nots_count = Note.objects.count()
         self.assertEqual(nots_count, 3)
+        new_note = Note.objects.latest('id')
+        self.assertEqual(new_note.title, self.form_data['title'])
+        self.assertEqual(new_note.text, self.form_data['text'])
+        self.assertEqual(new_note.slug, self.form_data['slug'])
 
     def test_cant_create_some_same_slugs(self):
+        url = reverse('notes:add')
+        self.form_data['slug'] = self.note.slug
         self.client.force_login(self.author)
-        self.client.post(reverse('notes:add'), data=self.form_data)
-        self.client.post(reverse('notes:add'), data=self.form_data)
+        response = self.client.post(url, data=self.form_data)
+        self.assertFormError(
+            response.context['form'],
+            'slug',
+            self.note.slug + WARNING
+            )
         nots_count = Note.objects.count()
-        self.assertEqual(nots_count, 3)
+        self.assertEqual(nots_count, 2)
 
     def test_auto_add_slug_for_empty_field(self):
         self.client.force_login(self.author)
