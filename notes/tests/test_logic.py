@@ -4,10 +4,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
+from notes.forms import NoteForm, WARNING
 from notes.models import Note
-from notes.forms import NoteForm
-
-from notes.forms import WARNING
 
 User = get_user_model()
 
