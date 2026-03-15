@@ -1,17 +1,12 @@
-# test_logic.py
-from pytest_django.asserts import assertRedirects, assertFormError
-
-from django.urls import reverse
-
-from pytils.translit import slugify
-
-from notes.models import Note
-from notes.forms import WARNING
-
 from http import HTTPStatus
 
 import pytest
+from django.urls import reverse
+from pytils.translit import slugify
+from pytest_django.asserts import assertFormError, assertRedirects
 
+from notes.forms import WARNING
+from notes.models import Note
 
 def test_user_can_create_note(author_client, author, form_data):
     url = reverse('notes:add')
